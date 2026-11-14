@@ -1,4 +1,5 @@
 import os
+import asyncio
 import threading
 from flask import Flask
 from telegram import Update
@@ -27,7 +28,7 @@ def home():
 
 def run_web():
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, use_reloader=False)
 
 # 4. មុខងាររបស់ Telegram Bot
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -61,14 +62,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"សុំទោស មានបញ្ហាបច្ចេកទេស៖ {str(e)}")
 
-if __name__ == '__main__':
-    if not TELEGRAM_TOKEN or not GEMINI_API_KEY:
-        print("Warning: ខ្វះ Token ឬ API Key ក្នុង Environment Variables!")
-
-    # បើក Flask Web Server ក្នុង Thread ផ្សេង
-    threading.Thread(target=run_web, daemon=True).start()
-
-    # បើកដំណើរការ Telegram Bot
+def run_bot():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("clear", clear_memory))
@@ -76,3 +73,13 @@ if __name__ == '__main__':
 
     print("Bot កំពុងដំណើរការ...")
     application.run_polling()
+
+if __name__ == '__main__':
+    if not TELEGRAM_TOKEN or not GEMINI_API_KEY:
+        print("Warning: ខ្វះ Token ឬ API Key ក្នុង Environment Variables!")
+
+    # បើក Telegram Bot ក្នុង Thread ផ្ទាល់ខ្លួន
+    threading.Thread(target=run_bot, daemon=True).start()
+
+    # បើក Flask Web Server នៅ Main Thread
+    run_web()
