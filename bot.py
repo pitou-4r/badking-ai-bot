@@ -10,7 +10,8 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # ប្រើប្រាស់ gemini-2.5-flash ដើម្បីធានាដំណើរការរលូន ១០០%
+    model = genai.GenerativeModel('gemini-2.5-flash')
 else:
     model = None
 
@@ -73,9 +74,8 @@ def webhook():
     return "OK", 200
 
 if __name__ == '__main__':
-    # Set Webhook tự động khi khởi động
     PORT = int(os.environ.get("PORT", 8080))
-    URL = os.environ.get("RENDER_EXTERNAL_URL") # Render memberikan URL otomatis
+    URL = os.environ.get("RENDER_EXTERNAL_URL")
     
     if URL:
         import requests
