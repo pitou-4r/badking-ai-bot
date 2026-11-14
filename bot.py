@@ -9,9 +9,12 @@ import google.generativeai as genai
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# 2. កំណត់ដំណើរការ Gemini AI
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.5-flash')
+# 2. កំណត់ដំណើរការ Gemini AI (ប្តូរមកប្រើ gemini-1.5-flash ដែលមានស្ថិរភាពល្អ)
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    model = None
 
 user_chats = {}
 
@@ -29,17 +32,23 @@ def run_web():
 # 4. មុខងារ Bot
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    user_chats[user_id] = model.start_chat(history=[])
+    if model:
+        user_chats[user_id] = model.start_chat(history=[])
     await update.message.reply_text("សួស្តី! ខ្ញុំជា AI Bot របស់អ្នក។ សួរអ្វីមកខ្ញុំក៏បានដែរ!")
 
 async def clear_memory(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    user_chats[user_id] = model.start_chat(history=[])
+    if model:
+        user_chats[user_id] = model.start_chat(history=[])
     await update.message.reply_text("បានសម្អាតការចងចាំចាស់ៗរួចរាល់ហើយ!")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_text = update.message.text
+
+    if not model:
+        await update.message.reply_text("សូមកំណត់ GEMINI_API_KEY ជាមុនសិន!")
+        return
 
     if user_id not in user_chats:
         user_chats[user_id] = model.start_chat(history=[])
@@ -54,11 +63,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == '__main__':
     if not TELEGRAM_TOKEN or not GEMINI_API_KEY:
-        print("Error: ខ្វះ Environment Variables!")
-        exit(1)
+        print("Warning: ខ្វះ TELEGRAM_TOKEN ឬ GEMINI_API_KEY ក្នុង Environment Variables!")
 
+    # បើក Flask Web Server ក្នុង Thread ផ្សេង
     threading.Thread(target=run_web, daemon=True).start()
 
+    # បើកដំណើរការ Telegram Bot
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("clear", clear_memory))
