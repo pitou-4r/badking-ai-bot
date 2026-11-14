@@ -1,16 +1,13 @@
 import os
-import asyncio
-import threading
-from flask import Flask
+from flask import Flask, request
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import google.generativeai as genai
 
-# 1. ទាញយក API Keys ពី Environment Variables
+# 1. ទាញយក API Keys
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# 2. កំណត់ដំណើរការ Gemini AI
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-1.5-flash')
@@ -19,18 +16,12 @@ else:
 
 user_chats = {}
 
-# 3. បង្កើត Web Server ខ្នាតតូចសម្រាប់ Render Port Binding
+# 2. បង្កើត Flask App
 app = Flask(__name__)
 
-@app.route('/')
-def home():
-    return "Telegram AI Bot is running successfully!"
+# កសាង Telegram Application ជា Global
+telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
 
-def run_web():
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, use_reloader=False)
-
-# 4. មុខងាររបស់ Telegram Bot
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if model:
@@ -62,24 +53,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"សុំទោស មានបញ្ហាបច្ចេកទេស៖ {str(e)}")
 
-def run_bot():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
-    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("clear", clear_memory))
-    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+# Add Handlers
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(CommandHandler("clear", clear_memory))
+telegram_app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    print("Bot កំពុងដំណើរការ...")
-    application.run_polling()
+@app.route('/')
+def home():
+    return "Telegram AI Bot is running!"
+
+@app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    async def process():
+        async with telegram_app:
+            await telegram_app.process_update(update)
+    import asyncio
+    asyncio.run(process())
+    return "OK", 200
 
 if __name__ == '__main__':
-    if not TELEGRAM_TOKEN or not GEMINI_API_KEY:
-        print("Warning: ខ្វះ Token ឬ API Key ក្នុង Environment Variables!")
+    # Set Webhook tự động khi khởi động
+    PORT = int(os.environ.get("PORT", 8080))
+    URL = os.environ.get("RENDER_EXTERNAL_URL") # Render memberikan URL otomatis
+    
+    if URL:
+        import requests
+        requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/setWebhook?url={URL}/{TELEGRAM_TOKEN}")
 
-    # បើក Telegram Bot ក្នុង Thread ផ្ទាល់ខ្លួន
-    threading.Thread(target=run_bot, daemon=True).start()
-
-    # បើក Flask Web Server នៅ Main Thread
-    run_web()
+    app.run(host="0.0.0.0", port=PORT)
