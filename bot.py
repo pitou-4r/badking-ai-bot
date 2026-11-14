@@ -10,8 +10,8 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
-    # ប្រើប្រាស់ gemini-2.5-flash ដើម្បីធានាដំណើរការរលូន ១០០%
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    # ដូរមកប្រើ gemini-3.8-flash តាមការណែនាំរបស់ Google
+    model = genai.GenerativeModel('gemini-3.8-flash')
 else:
     model = None
 
