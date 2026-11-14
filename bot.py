@@ -9,7 +9,7 @@ import google.generativeai as genai
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# 2. កំណត់ដំណើរការ Gemini AI (ប្តូរមកប្រើ gemini-1.5-flash ដែលមានស្ថិរភាពល្អ)
+# 2. កំណត់ដំណើរការ Gemini AI
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-1.5-flash')
@@ -23,13 +23,13 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Telegram AI Bot is running smoothly!"
+    return "Telegram AI Bot is running successfully!"
 
 def run_web():
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
 
-# 4. មុខងារ Bot
+# 4. មុខងាររបស់ Telegram Bot
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if model:
@@ -63,7 +63,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == '__main__':
     if not TELEGRAM_TOKEN or not GEMINI_API_KEY:
-        print("Warning: ខ្វះ TELEGRAM_TOKEN ឬ GEMINI_API_KEY ក្នុង Environment Variables!")
+        print("Warning: ខ្វះ Token ឬ API Key ក្នុង Environment Variables!")
 
     # បើក Flask Web Server ក្នុង Thread ផ្សេង
     threading.Thread(target=run_web, daemon=True).start()
